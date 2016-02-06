@@ -296,5 +296,6 @@ def test_stacked_autoencoder(finetune_lr=0.1, pretraining_epochs=15,
     fp2.close()
 
 if __name__ == "__main__":
-    test_stacked_autoencoder(hidden_layers_sizes=[1000, 1000, 1000],
+    test_stacked_autoencoder(dataset="../data/mnist.pkl.gz",
+                             hidden_layers_sizes=[1000, 1000, 1000],
                              corruption_levels=[0.1, 0.2, 0.3])

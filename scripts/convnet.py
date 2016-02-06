@@ -221,4 +221,4 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
     cPickle.dump(layer1, open("layer1.pkl", "wb"))
 
 if __name__ == '__main__':
-    evaluate_lenet5()
+    evaluate_lenet5(dataset="../data/mnist.pkl.gz")

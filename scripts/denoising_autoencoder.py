@@ -67,7 +67,7 @@ if __name__ == "__main__":
     batch_size = 20
 
     # 学習データのロード
-    datasets = load_data('mnist.pkl.gz')
+    datasets = load_data('../data/mnist.pkl.gz')
     # 自己符号化器は教師なし学習なので訓練データのラベルは使わない
     train_set_x = datasets[0][0]
 
