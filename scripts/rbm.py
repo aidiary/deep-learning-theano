@@ -8,7 +8,6 @@ import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
 from logistic_sgd import load_data
-from utils import tile_raster_images
 
 class RBM(object):
     """制約ボルツマンマシン (Restricted Boltzmann Machine: RBM)"""
@@ -66,8 +65,7 @@ class RBM(object):
         self.params = [self.W, self.hbias, self.vbias]
 
     def free_energy(self, v_sample):
-        """自由エネルギーを計算するシンボル（式9.9）を返す
-        TODO: v_sampleは行列？"""
+        """自由エネルギーを計算するシンボルを返す"""
         vbias_term = T.dot(v_sample, self.vbias)
         wx_b = T.dot(v_sample, self.W) + self.hbias
         hidden_term = T.sum(T.log(1 + T.exp(wx_b)), axis=1)
@@ -75,7 +73,7 @@ class RBM(object):
 
     def propup(self, vis):
         """可視層を引数で固定したときの隠れ層の確率 P(hi=1|v) を
-        計算するシンボル（式9.7）を返す
+        計算するシンボルを返す
         シグモイドを適用する前の式も合わせて返す"""
         pre_sigmoid_activation = T.dot(vis, self.W) + self.hbias
         return [pre_sigmoid_activation,
@@ -92,7 +90,7 @@ class RBM(object):
 
     def propdown(self, hid):
         """隠れ層を引数で固定した時の可視層の確率 P(vj=1|h) を
-        計算するシンボル（式9.8）を返す
+        計算するシンボルを返す
         シグモイドを適用する前の式も合わせて返す"""
         pre_sigmoid_activation = T.dot(hid, self.W.T) + self.vbias
         return [pre_sigmoid_activation,
@@ -108,44 +106,76 @@ class RBM(object):
         return [pre_sigmoid_v1, v1_mean, v1_sample]
 
     def gibbs_hvh(self, h0_sample):
-        """隠れ層の値から始まるGibbsサンプリングの1ステップ分"""
+        """隠れ層の値から始まるGibbsサンプリングの1ステップ分
+        h0_sample => v1_sample => h1_sample"""
         pre_sigmoid_v1, v1_mean, v1_sample = self.sample_v_given_h(h0_sample)
         pre_sigmoid_h1, h1_mean, h1_sample = self.sample_h_given_v(v1_sample)
         return [pre_sigmoid_v1, v1_mean, v1_sample,
                 pre_sigmoid_h1, h1_mean, h1_sample]
 
     def gibbs_vhv(self, v0_sample):
-        """可視層の値から始まるGibbsサンプリングの1ステップ分"""
+        """可視層の値から始まるGibbsサンプリングの1ステップ分
+        v0_sample => h1_sample => v1_sample"""
         pre_sigmoid_h1, h1_mean, h1_sample = self.sample_h_given_v(v0_sample)
         pre_sigmoid_v1, v1_mean, v1_sample = self.sample_v_given_h(h1_sample)
         return [pre_sigmoid_h1, h1_mean, h1_sample,
                 pre_sigmoid_v1, v1_mean, v1_sample]
 
     def get_cost_updates(self, lr=0.1, k=1):
+        """RBMのコスト関数と更新式のシンボルを返す"""
+        # CD法は訓練データ（self.input）からサンプリングを開始
         pre_sigmoid_ph, ph_mean, ph_sample = self.sample_h_given_v(self.input)
         chain_start = ph_sample
 
-        ([pre_sigmoid_nvs, nv_means, nv_samples,
-          pre_sigmoid_nhs, nh_means, nh_samples],
-         updates) = theano.scan(
+        (
+            [
+                pre_sigmoid_nvs,
+                nv_means,
+                nv_samples,
+                pre_sigmoid_nhs,
+                nh_means,
+                nh_samples
+            ],
+            updates
+        ) = theano.scan(
             self.gibbs_hvh,
             outputs_info=[None, None, None, None, None, chain_start],
             n_steps=k)
 
-         chain_end = nv_samples[-1]
+        # k回のサンプルのうち必要なのは可視層の最後のサンプル
+        chain_end = nv_samples[-1]
 
-         # コスト関数（式9.5のパラメータで微分してない式で二項目をCD-kで近似）
-         cost = T.mean(self.free_energy(self.input)) -
-                T.mean(self.free_energy(chain_end))
-         gparams = T.grad(cost, self.params, consider_constant=[chain_end])
+        # コスト関数
+        # 第2項はCD法による近似
+        cost = T.mean(self.free_energy(self.input)) - T.mean(self.free_energy(chain_end))
 
-         for gparam, param in zip(gparams, self.params):
-             updates[param] = param - gparam * T.cast(lr, dtype=theano.config.floatX)
-    
-         monitoring_cost = self.get_reconstruction_cost(updates, pre_sigmoid_nvs[-1])
+        # コスト関数の各パラメータでの勾配
+        gparams = T.grad(cost, self.params, consider_constant=[chain_end])
 
-         return monitoring_cost, updates
+        # SGDによる更新式
+        for gparam, param in zip(gparams, self.params):
+            updates[param] = param - gparam * T.cast(lr, dtype=theano.config.floatX)
 
+        # RBMではコスト関数をそのままモニタリングしない（TODO:なぜcostではダメなのか？）
+        # v => h => v'での (v, v') の交差エントロピーを再構築誤差として返す
+        # hとv'はサンプルではなく確率の方を使う
+        # denoising autoencoderと同じ
+        # Tutorialではupdateも引数としているが未使用変数なので削除
+        monitoring_cost = self.get_reconstruction_cost(pre_sigmoid_nvs[-1])
+
+        return monitoring_cost, updates
+
+    def get_reconstruction_cost(self, pre_sigmoid_nv):
+        """再構築誤差を返す"""
+        # sigmoidを取る前の値はここで必要
+        # log(sigmoid(x)) でnanにならないようにするため？
+        # Tutorialでは先頭に - がついていないけどバグ？
+        L = - T.sum(self.input * T.log(T.nnet.sigmoid(pre_sigmoid_nv)) +
+                    (1 - self.input) * T.log(1 - T.nnet.sigmoid(pre_sigmoid_nv)),
+                    axis=1)
+        cross_entropy = T.mean(L)
+
+        return cross_entropy
 
 
 def test_rbm(learning_rate=0.1, training_epochs=15,
@@ -215,4 +245,3 @@ def test_rbm(learning_rate=0.1, training_epochs=15,
     print 'Training took %f minutes' % (pretraining_time / 60.0)
 
     # Sampling from RBM
-
