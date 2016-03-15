@@ -245,3 +245,6 @@ def test_rbm(learning_rate=0.1, training_epochs=15,
     print 'Training took %f minutes' % (pretraining_time / 60.0)
 
     # Sampling from RBM
+
+if __name__ == "__main__":
+    test_rbm()
