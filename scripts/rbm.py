@@ -13,7 +13,7 @@ class RBM(object):
     """制約ボルツマンマシン (Restricted Boltzmann Machine: RBM)"""
     def __init__(self, input=None,
                  n_visible=784, n_hidden=500,
-                 w=None, hbias=None, vbias=None,
+                 W=None, hbias=None, vbias=None,
                  numpy_rng=None, theano_rng=None):
         # 可視層のユニット数
         self.n_visible = n_visible
@@ -48,7 +48,7 @@ class RBM(object):
         # 可視層のバイアスを表す共有変数を作成
         if vbias is None:
             vbias = theano.shared(
-                value=np.zeros(n_visible, dtype=thenao.config.floatX),
+                value=np.zeros(n_visible, dtype=theano.config.floatX),
                 name='vbias',
                 borrow=True)
 
@@ -182,7 +182,7 @@ def test_rbm(learning_rate=0.1, training_epochs=15,
              dataset='mnist.pkl.gz', batch_size=20,
              n_chains=20, n_samples=10, output_dir='rbm_plots',
              n_hidden=500):
-    dataset = load_data(dataset)
+    datasets = load_data(dataset)
 
     train_set_x, train_set_y = datasets[0]
     test_set_x, test_set_y = datasets[2]
@@ -247,4 +247,4 @@ def test_rbm(learning_rate=0.1, training_epochs=15,
     # Sampling from RBM
 
 if __name__ == "__main__":
-    test_rbm()
+    test_rbm(dataset='../data/mnist.pkl.gz')
