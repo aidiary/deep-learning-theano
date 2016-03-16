@@ -269,19 +269,21 @@ def test_rbm(learning_rate=0.1, training_epochs=15,
         updates=updates,
         name='sample_fn')
 
-    # 10x10で合計100サンプルを描画
+    # 10x20で合計200サンプルを描画
     pos = 1
-    for idx in range(100):
-        plt.subplot(10, 10, pos)
+    for i in range(10):
+        plt.subplot(10, 20, pos)
         plt.subplots_adjust(wspace=0, hspace=0)
 
         # サンプリング
         vis_mf, vis_sample = sample_fn()
 
-        plt.imshow(vis_sample.reshape(28, 28))
-        plt.gray()
-        plt.axis('off')
-        pos += 1
+        for j in range(20):
+            plt.imshow(vis_sample[j].reshape(28, 28))
+            plt.gray()
+            plt.axis('off')
+            pos += 1
+
     plt.savefig('rbm_samples.png')
     
 if __name__ == "__main__":
