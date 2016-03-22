@@ -3,11 +3,17 @@ import os
 import timeit
 import numpy as np
 
+try:
+    import PIL.Image as Image
+except ImportError:
+    import Image
+
 import theano
 import theano.tensor as T
 from theano.tensor.shared_randomstreams import RandomStreams
 
 from logistic_sgd import load_data
+from utils import tile_raster_images
 
 import matplotlib.pyplot as plt
 
@@ -217,6 +223,7 @@ def test_rbm(learning_rate=0.1, training_epochs=15,
         name='train_rbm'
     )
 
+    plotting_time = 0.0
     start_time = timeit.default_timer()
 
     for epoch in range(training_epochs):
@@ -226,65 +233,24 @@ def test_rbm(learning_rate=0.1, training_epochs=15,
 
         print 'Training epoch %d, cost is ' % epoch, np.mean(mean_cost)
 
+        # 重みをプロット
+        plotting_start = timeit.default_timer()
+        image = Image.fromarray(
+            tile_raster_images(
+                X=rbm.W.get_value(borrow=True).T,
+                img_shape=(28, 28),
+                tile_shape=(10, 10),
+                tile_spacing=(1, 1)
+            )
+        )
+        image.save('filters_at_epoch_%i.png' % epoch)
+        plotting_stop = timeit.default_timer()
+        plotting_time += (plotting_stop - plotting_start)
+
     end_time = timeit.default_timer()
-    pretraining_time = end_time - start_time
+    pretraining_time = (end_time - start_time) - plotting_time
 
     print 'Training took %f minutes' % (pretraining_time / 60.0)
-
-    # Sampling from RBM
-    number_of_test_samples = test_set_x.get_value(borrow=True).shape[0]
-
-    # テストデータからランダムにn_chains文のデータを選択
-    test_idx = rng.randint(number_of_test_samples - n_chains)
-    persistent_vis_chain = theano.shared(
-        np.asarray(
-            test_set_x.get_value(borrow=True)[test_idx:test_idx + n_chains],
-            dtype=theano.config.floatX
-        )
-    )
-
-    # v->h->vをplot_every回繰り返してサンプリング
-    plot_every = 1000
-    (
-        [
-            presig_hids,
-            hid_mfs,
-            hid_samples,
-            presig_vis,
-            vis_mfs,
-            vis_samples
-        ],
-        updates
-    ) = theano.scan(
-        rbm.gibbs_vhv,
-        outputs_info=[None, None, None, None, None, persistent_vis_chain],
-        n_steps=plot_every
-    )
-
-    # サンプリングする関数を定義
-    # 最後の可視ユニットの確率とサンプルを返す
-    sample_fn = theano.function(
-        [],
-        [vis_mfs[-1], vis_samples[-1]],
-        updates=updates,
-        name='sample_fn')
-
-    # 10x20で合計200サンプルを描画
-    pos = 1
-    for i in range(10):
-        plt.subplot(10, 20, pos)
-        plt.subplots_adjust(wspace=0, hspace=0)
-
-        # サンプリング
-        vis_mf, vis_sample = sample_fn()
-
-        for j in range(20):
-            plt.imshow(vis_sample[j].reshape(28, 28))
-            plt.gray()
-            plt.axis('off')
-            pos += 1
-
-    plt.savefig('rbm_samples.png')
     
 if __name__ == "__main__":
     test_rbm(dataset='../data/mnist.pkl.gz')
