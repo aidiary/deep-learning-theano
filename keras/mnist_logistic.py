@@ -28,6 +28,7 @@ if __name__ == "__main__":
     print('train samples: ', X_train.shape)
     print('test samples: ', X_test.shape)
 
+    # building the model
     print('building the model ...')
 
     model = Sequential()
@@ -37,10 +38,13 @@ if __name__ == "__main__":
     sgd = SGD(lr=0.13)
     model.compile(loss='categorical_crossentropy', optimizer=sgd)
 
+    # training
     model.fit(X_train, y_train,
               batch_size=batch_size, nb_epoch=nb_epoch,
               show_accuracy=True, verbose=1,
               validation_data=(X_test, y_test))
+
+    # evaluate
     score = model.evaluate(X_test, y_test,
                            show_accuracy=True, verbose=1)
     print('Test score:', score[0])
