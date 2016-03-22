@@ -34,7 +34,7 @@ if __name__ == "__main__":
     model.add(Dense(10, input_shape=(784,)))
     model.add(Activation('softmax'))
 
-    sgd = SGD()
+    sgd = SGD(lr=0.13)
     model.compile(loss='categorical_crossentropy', optimizer=sgd)
 
     model.fit(X_train, y_train,
@@ -45,4 +45,3 @@ if __name__ == "__main__":
                            show_accuracy=True, verbose=1)
     print('Test score:', score[0])
     print('Test accuracy:', score[1])
-
