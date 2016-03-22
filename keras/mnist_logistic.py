@@ -7,6 +7,8 @@ from keras.layers.core import Dense, Dropout, Activation
 from keras.optimizers import SGD
 from keras.utils import np_utils
 
+from myutils import draw_accuracy, draw_loss
+
 batch_size = 600
 nb_in = 784
 nb_out = 10
@@ -39,15 +41,19 @@ if __name__ == "__main__":
     model.compile(loss='categorical_crossentropy', optimizer=sgd)
 
     # training
-    history = model.fit(X_train, y_train,
-                        batch_size=batch_size,
-                        nb_epoch=nb_epoch,
-                        show_accuracy=True,
-                        verbose=1,
-                        validation_split=0.1)
+    hist = model.fit(X_train, y_train,
+                     batch_size=batch_size,
+                     nb_epoch=nb_epoch,
+                     show_accuracy=True,
+                     verbose=1,
+                     validation_split=0.1)
 
     # evaluate
     score = model.evaluate(X_test, y_test,
                            show_accuracy=True, verbose=1)
     print('Test score:', score[0])
     print('Test accuracy:', score[1])
+
+    # draw accuracy/loss plot
+    draw_accuracy(hist, title='logistic regression')
+    draw_loss(hist, title='logistic regression')
