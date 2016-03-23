@@ -7,6 +7,7 @@ from keras.layers.core import Dense, Dropout, Activation, Flatten
 from keras.layers.convolutional import Convolution2D, MaxPooling2D
 from keras.optimizers import SGD
 from keras.utils import np_utils
+from keras.callbacks import EarlyStopping
 
 from myutils import draw_accuracy, draw_loss
 
@@ -68,11 +69,15 @@ if __name__ == "__main__":
     sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
     model.compile(loss='categorical_crossentropy', optimizer=sgd)
 
+    # early stopping
+    early_stopping = EarlyStopping(monitor='val_loss', patience=2)
+
     if not data_augmentation:
         print('Not using data augmentation.')
         hist = model.fit(X_train, y_train, batch_size=batch_size,
                          nb_epoch=nb_epoch, show_accuracy=True,
-                         validation_split=0.1, shuffle=True)
+                         validation_split=0.1, shuffle=True,
+                         callbacks=[early_stopping])
     else:
         pass
 
